@@ -1,0 +1,32 @@
+# This cluster has no StorageClass / dynamic provisioner installed
+# (`kubectl get storageclass` returns nothing), so we can't just request
+# storage and let Kubernetes create it - we have to statically provision
+# a PersistentVolume ourselves using hostPath, and pin it to the node
+# whose disk it actually lives on via nodeAffinity. On a cloud-managed
+# cluster this file wouldn't exist; a StorageClass would provision
+# volumes on demand instead.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+  labels:
+    app: postgres
+spec:
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /mnt/cloud-platform-data/postgres
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - debian

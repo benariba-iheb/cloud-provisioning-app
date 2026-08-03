@@ -1,0 +1,46 @@
+# Mounted into /docker-entrypoint-initdb.d/ - the official postgres image
+# runs every .sql file there, in filename order, but ONLY the very first
+# time the container starts against an empty PGDATA directory. Changing
+# this ConfigMap later will NOT re-run against an existing database; you'd
+# need a real migration (a new .sql file applied manually) for that.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: cloud-platform
+data:
+  01-schema.sql: |
+    -- Every registered user of the platform.
+    CREATE TABLE users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_seen_at TIMESTAMPTZ
+    );
+
+    -- One row per ephemeral Ubuntu pod ever created.
+    CREATE TABLE instances (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        pod_name VARCHAR(100) NOT NULL UNIQUE,
+        status VARCHAR(20) NOT NULL DEFAULT 'creating'
+            CHECK (status IN ('creating', 'running', 'terminating', 'terminated', 'failed')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL,
+        terminated_at TIMESTAMPTZ
+    );
+
+    -- Audit trail: every action a user takes (login, create/delete instance, terminal access...).
+    CREATE TABLE activity_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        instance_id UUID REFERENCES instances(id) ON DELETE SET NULL,
+        action VARCHAR(50) NOT NULL,
+        details JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX idx_instances_user_id ON instances(user_id);
+    CREATE INDEX idx_instances_expires_at ON instances(expires_at);
+    CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
+    CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC);

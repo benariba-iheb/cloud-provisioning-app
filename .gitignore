@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Env files (never commit secrets)
+.env
+.env.local
+*.env
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Kubeconfig (may contain cluster credentials)
+kubeconfig*.yaml
+
+# Test coverage
+coverage/

@@ -1,0 +1,20 @@
+{
+  "name": "cloud_plat",
+  "version": "1.0.0",
+  "description": "Mini cloud provisioning platform - ephemeral Ubuntu instances via Kubernetes, web terminal, React + Node.js + PostgreSQL",
+  "private": true,
+  "author": "iheb",
+  "license": "ISC",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "install:all": "npm install",
+    "docker:build:backend": "docker build -t cloud-platform/backend:dev ./backend",
+    "docker:build:frontend": "docker build -t cloud-platform/frontend:dev ./frontend",
+    "k8s:apply": "kubectl apply -f k8s/manifests/00-namespace.yaml && kubectl apply -R -f k8s/manifests/"
+  }
+}

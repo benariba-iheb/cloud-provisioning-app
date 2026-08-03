@@ -1,0 +1,15 @@
+# storageClassName: "" + volumeName pins this claim to the specific
+# static PV above rather than waiting on a dynamic provisioner (there is none).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: cloud-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ""
+  volumeName: postgres-pv
+  resources:
+    requests:
+      storage: 2Gi
