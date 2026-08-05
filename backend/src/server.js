@@ -14,6 +14,7 @@ const { pool } = require('./db/pool');
 const { verifyToken } = require('./services/authService');
 const instanceService = require('./services/instanceService');
 const k8sService = require('./services/k8sService');
+const { metricsMiddleware } = require('./services/metricsService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' }));
+app.use(metricsMiddleware);
 
 // Liveness: process is up, no external dependencies checked.
 app.get('/health', (req, res) => {
@@ -43,9 +45,7 @@ app.get('/ready', async (req, res) => {
 
 app.use('/auth', require('./routes/auth'));
 app.use('/instances', require('./routes/instances'));
-
-// Route modules mount here as later phases are implemented:
-// app.use('/metrics', require('./routes/metrics'));
+app.use('/metrics', require('./routes/metrics'));
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });

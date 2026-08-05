@@ -20,6 +20,7 @@
     "express-rate-limit": "^8.6.1",
     "@kubernetes/client-node": "^1.4.0",
     "ws": "^8.21.2",
-    "cookie": "^0.7.2"
+    "cookie": "^0.7.2",
+    "prom-client": "^15.1.3"
   }
 }

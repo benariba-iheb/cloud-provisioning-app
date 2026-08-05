@@ -12,6 +12,14 @@ spec:
     metadata:
       labels:
         app: backend
+      annotations:
+        # Standard annotation-based scrape convention (no Prometheus
+        # Operator/ServiceMonitor CRD assumed on this cluster) - a no-op
+        # until a Prometheus with a kubernetes_sd_configs scrape job
+        # actually reads these, but free to declare now.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: backend-sa
       containers:
