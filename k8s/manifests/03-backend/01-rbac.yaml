@@ -13,7 +13,13 @@ rules:
     verbs: ["get", "list", "watch", "create", "delete"]
   - apiGroups: [""]
     resources: ["pods/exec"]
-    verbs: ["create"]
+    # "create" is the documented/conventional verb for exec access, but a
+    # WebSocket handshake is always an HTTP GET per protocol (RFC 6455) -
+    # confirmed live against this cluster (v1.36.2) that its authorizer
+    # checks "get" for this subresource, not "create". Granting both so
+    # this doesn't silently break again on a client/version that checks
+    # the other one.
+    verbs: ["get", "create"]
   - apiGroups: [""]
     resources: ["pods/log"]
     verbs: ["get"]

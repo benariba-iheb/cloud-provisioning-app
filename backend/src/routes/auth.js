@@ -13,11 +13,18 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const COOKIE_NAME = 'token';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Whether TLS actually terminates in front of this deployment - NOT the
+// same question as NODE_ENV=production. A production deployment can
+// legitimately have no TLS (e.g. a bare NodePort with no Ingress/cert, as
+// on this cluster); conflating the two makes the browser silently refuse
+// to store/send the cookie at all over plain HTTP, breaking auth with no
+// visible error. Explicit opt-in, defaults to false.
+const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
 
 function cookieOptions() {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: COOKIE_SECURE,
     sameSite: 'strict',
     path: '/',
   };

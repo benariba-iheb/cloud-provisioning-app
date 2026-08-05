@@ -44,6 +44,13 @@ function buildPodManifest({ instanceId, userId, podName }) {
       restartPolicy: 'Never',
       terminationGracePeriodSeconds: 5,
       automountServiceAccountToken: false,
+      // No image registry - the instance image is built and imported
+      // straight into containerd on the "debian" node, so instance pods
+      // must land there too (same reasoning as the backend/frontend
+      // Deployments' nodeSelector).
+      nodeSelector: {
+        'kubernetes.io/hostname': 'debian',
+      },
       containers: [
         {
           name: 'sandbox',

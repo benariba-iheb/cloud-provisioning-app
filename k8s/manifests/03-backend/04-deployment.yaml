@@ -22,6 +22,12 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: backend-sa
+      # No image registry - images are built locally on the "debian" node
+      # and imported straight into containerd there, so pods must land on
+      # that specific node (matches postgres's PV nodeAffinity, which is
+      # already pinned there for the same underlying reason).
+      nodeSelector:
+        kubernetes.io/hostname: debian
       containers:
         - name: backend
           image: cloud-platform/backend:dev

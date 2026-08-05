@@ -13,6 +13,11 @@ spec:
       labels:
         app: frontend
     spec:
+      # No image registry - images are built locally on the "debian" node
+      # and imported straight into containerd there. See the matching note
+      # on the backend Deployment.
+      nodeSelector:
+        kubernetes.io/hostname: debian
       containers:
         - name: frontend
           image: cloud-platform/frontend:dev
