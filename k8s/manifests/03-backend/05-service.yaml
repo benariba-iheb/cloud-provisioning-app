@@ -1,0 +1,14 @@
+# Internal-only, matching postgres's service - the browser never talks to
+# this directly, only the frontend's nginx proxy (see k8s/manifests/04-frontend).
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: cloud-platform
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http

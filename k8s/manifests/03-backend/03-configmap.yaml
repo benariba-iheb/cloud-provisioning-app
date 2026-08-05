@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: cloud-platform
+data:
+  NODE_ENV: "production"
+  K8S_NAMESPACE: "cloud-platform"
+  INSTANCE_TTL_SECONDS: "600"
+  JWT_EXPIRES_IN: "30m"
+  # NodePort chosen in 04-frontend/01-service.yaml - keep these in sync.
+  FRONTEND_URL: "http://<node-ip>:30080"

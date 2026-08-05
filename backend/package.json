@@ -13,6 +13,13 @@
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
     "dotenv": "^16.4.5",
-    "pg": "^8.11.5"
+    "pg": "^8.11.5",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
+    "cookie-parser": "^1.4.7",
+    "express-rate-limit": "^8.6.1",
+    "@kubernetes/client-node": "^1.4.0",
+    "ws": "^8.21.2",
+    "cookie": "^0.7.2"
   }
 }

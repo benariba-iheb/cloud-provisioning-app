@@ -1,0 +1,33 @@
+# Least-privilege, namespace-scoped: the backend provisions and tears down
+# ephemeral instance pods and execs into them for the web terminal, and
+# never needs to touch anything outside cloud-platform - a Role, not a
+# ClusterRole.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backend-pod-manager
+  namespace: cloud-platform
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backend-pod-manager-binding
+  namespace: cloud-platform
+subjects:
+  - kind: ServiceAccount
+    name: backend-sa
+    namespace: cloud-platform
+roleRef:
+  kind: Role
+  name: backend-pod-manager
+  apiGroup: rbac.authorization.k8s.io

@@ -15,6 +15,7 @@
     "install:all": "npm install",
     "docker:build:backend": "docker build -t cloud-platform/backend:dev ./backend",
     "docker:build:frontend": "docker build -t cloud-platform/frontend:dev ./frontend",
+    "docker:build:instance": "docker build -t cloud-platform/instance:dev ./k8s/images/instance",
     "k8s:apply": "kubectl apply -f k8s/manifests/00-namespace.yaml && kubectl apply -R -f k8s/manifests/"
   }
 }

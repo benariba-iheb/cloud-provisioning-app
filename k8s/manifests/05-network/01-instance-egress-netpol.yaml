@@ -1,0 +1,51 @@
+# Ephemeral instance pods get outbound internet access (apt/curl/git should
+# work inside them) but must NOT be able to reach the platform's own
+# services (postgres, backend, frontend) directly - instances are isolated
+# from the platform, not from the web.
+#
+# IMPORTANT - verify before trusting this:
+#  1. NetworkPolicy is only enforced if the cluster's CNI implements it.
+#     Plain flannel does NOT; Calico/Cilium do. Check what's actually
+#     running with `kubectl get pods -n kube-system -o wide`, then confirm
+#     with a live test (try to curl postgres's ClusterIP from a throwaway
+#     pod labeled app=instance and confirm it's refused) before relying on
+#     this for isolation.
+#  2. The `except` CIDRs below are the common kubeadm/flannel defaults
+#     (pod network 10.244.0.0/16, service network 10.96.0.0/12) - NOT
+#     verified against this specific cluster. An unqualified
+#     `ipBlock: 0.0.0.0/0` would also match in-cluster pod IPs (they're a
+#     subset of that range), silently re-opening direct access to
+#     postgres/backend/frontend regardless of the rule above - so this
+#     `except` clause is load-bearing, not decorative. Confirm the real
+#     values with:
+#       kubectl cluster-info dump | grep -m1 -E 'service-cluster-ip-range|cluster-cidr'
+#     and update this file before applying if they differ.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: instance-egress-restrict
+  namespace: cloud-platform
+spec:
+  podSelector:
+    matchLabels:
+      app: instance
+  policyTypes:
+    - Egress
+  egress:
+    # DNS - required for any name resolution at all, including apt/curl/git.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Internet, excluding this cluster's own pod and service IP ranges.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.244.0.0/16 # VERIFY: this cluster's actual pod network CIDR
+              - 10.96.0.0/12 # VERIFY: this cluster's actual service CIDR

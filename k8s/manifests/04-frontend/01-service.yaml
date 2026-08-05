@@ -1,0 +1,18 @@
+# NodePort, not ClusterIP: this cluster has no Ingress controller or
+# LoadBalancer, so this is the simplest way to reach the UI directly at
+# http://<node-ip>:30080. Backend and postgres stay ClusterIP-only/internal -
+# only the frontend needs to be reachable from outside the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: cloud-platform
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+      name: http
