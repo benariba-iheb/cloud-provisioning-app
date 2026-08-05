@@ -27,6 +27,12 @@ async function getCoreApi() {
   return kc.makeApiClient(k8s.CoreV1Api);
 }
 
+async function getNetworkingApi() {
+  const k8s = await loadK8s();
+  const kc = await getKubeConfig();
+  return kc.makeApiClient(k8s.NetworkingV1Api);
+}
+
 function buildPodManifest({ instanceId, userId, podName }) {
   return {
     apiVersion: 'v1',
@@ -75,6 +81,65 @@ async function createInstancePod({ instanceId, userId, podName }) {
   });
 }
 
+function userIsolationPolicyName(userId) {
+  return `instance-isolation-${userId}`;
+}
+
+// A user's instances should be able to reach each other but not another
+// user's - vanilla NetworkPolicy can't express "same label value as me" in
+// one static rule, so this is one policy per user, keyed on the same
+// user-id label buildPodManifest() already puts on every instance pod.
+// Ingress/egress to DNS+internet for all instance pods is handled
+// separately by the static k8s/manifests/05-network/01-instance-egress-netpol.yaml
+// policy - NetworkPolicies for the same pod are additive (OR'd), so this
+// only needs to add the same-user peer traffic on top of that.
+//
+// NOTE: this cluster's CNI is Flannel, which does not enforce the
+// NetworkPolicy API at all - this applies cleanly and is semantically
+// correct, but is inert until a NetworkPolicy-capable CNI (Calico/Cilium)
+// is in front of it. See k8s/manifests/05-network/01-instance-egress-netpol.yaml
+// for the same caveat on the existing policy.
+function buildUserIsolationNetworkPolicy(userId) {
+  const peerSelector = { matchLabels: { app: 'instance', 'user-id': userId } };
+  return {
+    apiVersion: 'networking.k8s.io/v1',
+    kind: 'NetworkPolicy',
+    metadata: {
+      name: userIsolationPolicyName(userId),
+      namespace: NAMESPACE,
+    },
+    spec: {
+      podSelector: peerSelector,
+      policyTypes: ['Ingress', 'Egress'],
+      // The client-node model for an ingress rule's peer list is keyed as
+      // `_from`, not `from` - the generated TS class renames it internally
+      // (avoiding a collision with the `from` keyword used elsewhere in
+      // generated ESM code) while still serializing to the wire as "from".
+      // Confirmed live: a plain `from` key here gets silently dropped by
+      // the serializer, producing an empty {} ingress rule that means
+      // "allow from anywhere" - the opposite of intended. Egress's `to`
+      // key has no such collision and needs no special handling.
+      ingress: [{ _from: [{ podSelector: peerSelector }] }],
+      egress: [{ to: [{ podSelector: peerSelector }] }],
+    },
+  };
+}
+
+// Idempotent - called before every instance create, not just the user's
+// first, since it's cheap and avoids tracking "has this user's policy
+// already been created" as separate state.
+async function ensureUserNetworkPolicy(userId) {
+  const networkingApi = await getNetworkingApi();
+  try {
+    await networkingApi.createNamespacedNetworkPolicy({
+      namespace: NAMESPACE,
+      body: buildUserIsolationNetworkPolicy(userId),
+    });
+  } catch (err) {
+    if (err?.code !== 409) throw err;
+  }
+}
+
 async function deletePod(podName) {
   const coreApi = await getCoreApi();
   try {
@@ -104,4 +169,4 @@ async function execIntoPod(podName, { stdout, stderr, stdin, command = ['/bin/ba
   return exec.exec(NAMESPACE, podName, containerName, command, stdout, stderr, stdin, true, statusCallback);
 }
 
-module.exports = { createInstancePod, deletePod, getPodPhase, execIntoPod };
+module.exports = { createInstancePod, deletePod, getPodPhase, execIntoPod, ensureUserNetworkPolicy };

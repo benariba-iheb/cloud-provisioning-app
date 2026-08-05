@@ -3,23 +3,30 @@
 # services (postgres, backend, frontend) directly - instances are isolated
 # from the platform, not from the web.
 #
+# This is the "isolated from the platform" half only. The "one user's
+# instances can reach each other, but not another user's" half is a
+# separate, per-user policy created dynamically by the backend - see
+# ensureUserNetworkPolicy() in backend/src/services/k8sService.js. It
+# can't be a static file here since it needs one instance per user, keyed
+# on the user-id label buildPodManifest() puts on every instance pod.
+#
 # IMPORTANT - verify before trusting this:
 #  1. NetworkPolicy is only enforced if the cluster's CNI implements it.
-#     Plain flannel does NOT; Calico/Cilium do. Check what's actually
-#     running with `kubectl get pods -n kube-system -o wide`, then confirm
-#     with a live test (try to curl postgres's ClusterIP from a throwaway
-#     pod labeled app=instance and confirm it's refused) before relying on
-#     this for isolation.
-#  2. The `except` CIDRs below are the common kubeadm/flannel defaults
-#     (pod network 10.244.0.0/16, service network 10.96.0.0/12) - NOT
-#     verified against this specific cluster. An unqualified
-#     `ipBlock: 0.0.0.0/0` would also match in-cluster pod IPs (they're a
-#     subset of that range), silently re-opening direct access to
-#     postgres/backend/frontend regardless of the rule above - so this
-#     `except` clause is load-bearing, not decorative. Confirm the real
-#     values with:
-#       kubectl cluster-info dump | grep -m1 -E 'service-cluster-ip-range|cluster-cidr'
-#     and update this file before applying if they differ.
+#     CONFIRMED on this cluster (2026-08-05): the CNI is plain Flannel,
+#     which does NOT enforce NetworkPolicy at all - this applies cleanly
+#     via `kubectl apply` and enforces nothing. Re-check with
+#     `kubectl get pods -n kube-system -o wide` if the CNI ever changes,
+#     then confirm with a live test (try to curl postgres's ClusterIP from
+#     a throwaway pod labeled app=instance and confirm it's refused).
+#  2. The `except` CIDRs below were CONFIRMED against this real cluster
+#     (2026-08-05) via `kubectl cluster-info dump | grep -E
+#     'service-cluster-ip-range|cluster-cidr'` - not just kubeadm/flannel
+#     defaults assumed to match. An unqualified `ipBlock: 0.0.0.0/0` would
+#     also match in-cluster pod IPs (they're a subset of that range),
+#     silently re-opening direct access to postgres/backend/frontend
+#     regardless of the rule above - so this `except` clause is
+#     load-bearing, not decorative. Re-verify if this cluster's pod/service
+#     CIDR ever changes.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -75,6 +75,10 @@ async function createInstance(userId) {
   );
 
   try {
+    // Isolation policy first: it's a no-op if the pod doesn't exist yet, but
+    // creating the pod before its policy exists would leave a real (if
+    // brief) window where the new pod has no isolation from other users'.
+    await k8sService.ensureUserNetworkPolicy(userId);
     await k8sService.createInstancePod({ instanceId, userId, podName });
   } catch (err) {
     await pool.query(`UPDATE instances SET status = 'failed' WHERE id = $1`, [instanceId]);
