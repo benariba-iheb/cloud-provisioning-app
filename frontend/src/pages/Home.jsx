@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Header from '../components/Header';
 
 export default function Home() {
   const { user } = useAuth();
@@ -14,18 +15,25 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <h1>Cloud Platform</h1>
-      <p>Backend status: {status}</p>
-      {user ? (
+    <div className="page">
+      <Header />
+      <div className="page-content">
+        <h1>Cloud Platform</h1>
         <p>
-          Welcome back, {user.email}. <Link to="/dashboard">Go to dashboard</Link>
+          Ephemeral Ubuntu instances, provisioned on demand.{' '}
+          <span className="mono">Backend status: {status}</span>
         </p>
-      ) : (
-        <p>
-          <Link to="/login">Log in</Link> or <Link to="/register">Register</Link>
-        </p>
-      )}
+        {user ? (
+          <p>
+            Welcome back, {user.email}. <Link to="/dashboard">Go to your dashboard →</Link>
+          </p>
+        ) : (
+          <p>
+            <Link to="/login">Log in</Link> or <Link to="/register">create an account</Link> to get
+            started.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

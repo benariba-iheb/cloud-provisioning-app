@@ -25,29 +25,47 @@ export default function Login() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h1>Log in</h1>
-      {error && <p role="alert">{error}</p>}
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-        required
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        required
-      />
-      <button type="submit" disabled={submitting}>
-        Log in
-      </button>
-      <p>
-        No account? <Link to="/register">Register</Link>
-      </p>
-    </form>
+    <div className="center-content">
+      <div className="card card-narrow">
+        <h1>Log in</h1>
+        <form onSubmit={handleSubmit}>
+          {error && (
+            <p className="alert" role="alert">
+              {error}
+            </p>
+          )}
+          <div>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Logging in…' : 'Log in'}
+          </button>
+        </form>
+        <p style={{ marginTop: '1rem', marginBottom: 0 }}>
+          No account? <Link to="/register">Register</Link>
+        </p>
+      </div>
+    </div>
   );
 }

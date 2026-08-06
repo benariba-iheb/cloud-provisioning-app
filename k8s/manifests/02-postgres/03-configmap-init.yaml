@@ -19,11 +19,13 @@ data:
         last_seen_at TIMESTAMPTZ
     );
 
-    -- One row per ephemeral Ubuntu pod ever created.
+    -- One row per ephemeral instance pod ever created.
     CREATE TABLE instances (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         pod_name VARCHAR(100) NOT NULL UNIQUE,
+        distro VARCHAR(20) NOT NULL DEFAULT 'ubuntu'
+            CHECK (distro IN ('ubuntu', 'arch', 'opensuse')),
         status VARCHAR(20) NOT NULL DEFAULT 'creating'
             CHECK (status IN ('creating', 'running', 'terminating', 'terminated', 'failed')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

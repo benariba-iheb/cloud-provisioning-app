@@ -1,5 +1,14 @@
 const NAMESPACE = process.env.K8S_NAMESPACE || 'cloud-platform';
-const INSTANCE_IMAGE = process.env.INSTANCE_IMAGE || 'cloud-platform/instance:dev';
+
+// One image per distro option users can pick when creating an instance -
+// same "no registry, built+imported locally on the debian node" deal as
+// the backend/frontend images, just one per distro instead of one image.
+const DISTRO_IMAGES = {
+  ubuntu: process.env.INSTANCE_IMAGE_UBUNTU || 'cloud-platform/instance-ubuntu:dev',
+  arch: process.env.INSTANCE_IMAGE_ARCH || 'cloud-platform/instance-arch:dev',
+  opensuse: process.env.INSTANCE_IMAGE_OPENSUSE || 'cloud-platform/instance-opensuse:dev',
+};
+const DISTROS = Object.keys(DISTRO_IMAGES);
 
 // @kubernetes/client-node is ESM-only; this backend is CommonJS, so it's
 // loaded via a memoized dynamic import rather than require().
@@ -33,7 +42,7 @@ async function getNetworkingApi() {
   return kc.makeApiClient(k8s.NetworkingV1Api);
 }
 
-function buildPodManifest({ instanceId, userId, podName }) {
+function buildPodManifest({ instanceId, userId, podName, distro }) {
   return {
     apiVersion: 'v1',
     kind: 'Pod',
@@ -44,6 +53,7 @@ function buildPodManifest({ instanceId, userId, podName }) {
         app: 'instance',
         'user-id': userId,
         'instance-id': instanceId,
+        distro,
       },
     },
     spec: {
@@ -60,7 +70,7 @@ function buildPodManifest({ instanceId, userId, podName }) {
       containers: [
         {
           name: 'sandbox',
-          image: INSTANCE_IMAGE,
+          image: DISTRO_IMAGES[distro],
           imagePullPolicy: 'IfNotPresent',
           command: ['sleep', 'infinity'],
           resources: {
@@ -73,11 +83,11 @@ function buildPodManifest({ instanceId, userId, podName }) {
   };
 }
 
-async function createInstancePod({ instanceId, userId, podName }) {
+async function createInstancePod({ instanceId, userId, podName, distro }) {
   const coreApi = await getCoreApi();
   await coreApi.createNamespacedPod({
     namespace: NAMESPACE,
-    body: buildPodManifest({ instanceId, userId, podName }),
+    body: buildPodManifest({ instanceId, userId, podName, distro }),
   });
 }
 
@@ -169,4 +179,4 @@ async function execIntoPod(podName, { stdout, stderr, stdin, command = ['/bin/ba
   return exec.exec(NAMESPACE, podName, containerName, command, stdout, stderr, stdin, true, statusCallback);
 }
 
-module.exports = { createInstancePod, deletePod, getPodPhase, execIntoPod, ensureUserNetworkPolicy };
+module.exports = { DISTROS, createInstancePod, deletePod, getPodPhase, execIntoPod, ensureUserNetworkPolicy };

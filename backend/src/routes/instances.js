@@ -15,7 +15,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    res.status(201).json({ instance: await instanceService.createInstance(req.user.id) });
+    res.status(201).json({ instance: await instanceService.createInstance(req.user.id, req.body?.distro) });
   } catch (err) {
     next(err);
   }

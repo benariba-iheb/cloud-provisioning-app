@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import * as instancesApi from '../api/instances';
+import Header from '../components/Header';
 
 const MAX_INSTANCES = 3;
 const TRANSITIONAL_STATUSES = ['creating', 'terminating'];
 const ACTIVE_STATUSES = ['creating', 'running'];
 const POLL_INTERVAL_MS = 4000;
+// Keep in sync with DISTRO_IMAGES in backend/src/services/k8sService.js.
+const DISTROS = [
+  { value: 'ubuntu', label: 'Ubuntu 24.04' },
+  { value: 'arch', label: 'Arch Linux' },
+  { value: 'opensuse', label: 'openSUSE Leap 15.6' },
+];
+const distroLabel = (value) => DISTROS.find((d) => d.value === value)?.label || value;
 
 function formatCountdown(expiresAt) {
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -18,11 +25,11 @@ function formatCountdown(expiresAt) {
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [distro, setDistro] = useState(DISTROS[0].value);
   const [, forceTick] = useState(0);
   const pollTimeoutRef = useRef(null);
 
@@ -64,7 +71,7 @@ export default function Dashboard() {
     setError(null);
     setCreating(true);
     try {
-      await instancesApi.create();
+      await instancesApi.create(distro);
       await refresh();
     } catch (err) {
       setError(err.message);
@@ -84,62 +91,90 @@ export default function Dashboard() {
   };
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <p>
-        Logged in as {user.email} <button onClick={logout}>Log out</button>
-      </p>
+    <div className="page">
+      <Header />
+      <div className="page-content">
+        <h1>Your instances</h1>
+        {error && (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        )}
 
-      <h1>Your instances</h1>
-      {error && <p role="alert">{error}</p>}
-
-      <button onClick={handleCreate} disabled={creating || activeCount >= MAX_INSTANCES}>
-        Create instance
-      </button>
-      {activeCount >= MAX_INSTANCES && (
-        <p>
-          <em>Maximum of {MAX_INSTANCES} concurrent instances reached. Terminate one to create another.</em>
-        </p>
-      )}
-
-      {loading ? (
-        <p>Loading...</p>
-      ) : instances.length === 0 ? (
-        <p>No instances yet.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th>Expires in</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {instances.map((instance) => (
-              <tr key={instance.id}>
-                <td>{instance.id.slice(0, 8)}</td>
-                <td>{instance.status}</td>
-                <td>{new Date(instance.createdAt).toLocaleTimeString()}</td>
-                <td>
-                  {instance.status === 'running' || instance.status === 'creating'
-                    ? formatCountdown(instance.expiresAt)
-                    : '-'}
-                </td>
-                <td>
-                  {instance.status === 'running' && (
-                    <Link to={`/instances/${instance.id}/terminal`}>Terminal</Link>
-                  )}{' '}
-                  {(instance.status === 'running' || instance.status === 'creating') && (
-                    <button onClick={() => handleTerminate(instance.id)}>Terminate</button>
-                  )}
-                </td>
-              </tr>
+        <div className="instances-toolbar">
+          <select
+            value={distro}
+            onChange={(e) => setDistro(e.target.value)}
+            disabled={creating || activeCount >= MAX_INSTANCES}
+            aria-label="Distro"
+          >
+            {DISTROS.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
             ))}
-          </tbody>
-        </table>
-      )}
+          </select>
+          <button onClick={handleCreate} disabled={creating || activeCount >= MAX_INSTANCES}>
+            {creating ? 'Creating…' : 'Create instance'}
+          </button>
+          {activeCount >= MAX_INSTANCES && (
+            <span className="hint" style={{ margin: 0 }}>
+              Maximum of {MAX_INSTANCES} concurrent instances reached. terminate one to create
+              another.
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <p>Loading…</p>
+        ) : instances.length === 0 ? (
+          <div className="empty-state">No instances yet. create one to get started.</div>
+        ) : (
+          <table className="instances-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>OS</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Expires in</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {instances.map((instance) => (
+                <tr key={instance.id}>
+                  <td className="mono">{instance.id.slice(0, 8)}</td>
+                  <td>{distroLabel(instance.distro)}</td>
+                  <td>
+                    <span className={`status-badge status-${instance.status}`}>
+                      {instance.status}
+                    </span>
+                  </td>
+                  <td>{new Date(instance.createdAt).toLocaleTimeString()}</td>
+                  <td className="mono">
+                    {instance.status === 'running' || instance.status === 'creating'
+                      ? formatCountdown(instance.expiresAt)
+                      : '–'}
+                  </td>
+                  <td>
+                    <div className="actions">
+                      {instance.status === 'running' && (
+                        <Link to={`/instances/${instance.id}/terminal`}>Terminal</Link>
+                      )}
+                      {(instance.status === 'running' || instance.status === 'creating') && (
+                        <button className="danger" onClick={() => handleTerminate(instance.id)}>
+                          Terminate
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

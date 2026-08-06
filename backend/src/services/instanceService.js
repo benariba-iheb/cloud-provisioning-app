@@ -5,11 +5,13 @@ const k8sService = require('./k8sService');
 const MAX_INSTANCES_PER_USER = 3;
 const TTL_SECONDS = Number(process.env.INSTANCE_TTL_SECONDS) || 600;
 const ACTIVE_STATUSES = ['creating', 'running'];
+const DEFAULT_DISTRO = 'ubuntu';
 
 function toApiShape(row) {
   return {
     id: row.id,
     podName: row.pod_name,
+    distro: row.distro,
     status: row.status,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
@@ -56,7 +58,13 @@ async function getInstanceForUser(userId, instanceId) {
   return toApiShape(await reconcileRow(rows[0]));
 }
 
-async function createInstance(userId) {
+async function createInstance(userId, distro = DEFAULT_DISTRO) {
+  if (!k8sService.DISTROS.includes(distro)) {
+    const err = new Error(`Invalid distro '${distro}' - must be one of: ${k8sService.DISTROS.join(', ')}`);
+    err.status = 400;
+    throw err;
+  }
+
   const instances = await listInstances(userId);
   const activeCount = instances.filter((i) => ACTIVE_STATUSES.includes(i.status)).length;
   if (activeCount >= MAX_INSTANCES_PER_USER) {
@@ -70,8 +78,8 @@ async function createInstance(userId) {
   const expiresAt = new Date(Date.now() + TTL_SECONDS * 1000);
 
   const { rows } = await pool.query(
-    `INSERT INTO instances (id, user_id, pod_name, expires_at) VALUES ($1, $2, $3, $4) RETURNING *`,
-    [instanceId, userId, podName, expiresAt]
+    `INSERT INTO instances (id, user_id, pod_name, distro, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [instanceId, userId, podName, distro, expiresAt]
   );
 
   try {
@@ -79,7 +87,7 @@ async function createInstance(userId) {
     // creating the pod before its policy exists would leave a real (if
     // brief) window where the new pod has no isolation from other users'.
     await k8sService.ensureUserNetworkPolicy(userId);
-    await k8sService.createInstancePod({ instanceId, userId, podName });
+    await k8sService.createInstancePod({ instanceId, userId, podName, distro });
   } catch (err) {
     await pool.query(`UPDATE instances SET status = 'failed' WHERE id = $1`, [instanceId]);
     const wrapped = new Error('Failed to create instance');
